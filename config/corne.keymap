@@ -193,7 +193,7 @@
             bindings = <
 &kp TAB       &kp EXCL         &kp AT      &kp HASH          &kp DLLR    &kp PRCNT         &kp CARET  &kp AMPS   &kp ASTRK  &kp LPAR  &kp RPAR  &kp DELETE
 &kp LCTRL     &kp C_VOLUME_UP  &kp C_PREV  &kp C_PLAY_PAUSE  &kp C_NEXT  &bt BT_SEL 0      &kp MINUS  &kp EQUAL  &kp LBKT   &kp RBKT  &kp BSLH  &kp GRAVE
-&kp CAPSLOCK  &kp C_VOL_DN     &trans      &trans            &kp LC(C)   &bt BT_CLR_ALL    &kp UNDER  &kp PLUS   &kp LBRC   &kp RBRC  &kp PIPE  &kp TILDE
+&kp CAPSLOCK  &kp C_VOL_DN     &trans      &kp LC(B)         &kp LC(C)   &bt BT_CLR_ALL    &kp UNDER  &kp PLUS   &kp LBRC   &kp RBRC  &kp PIPE  &kp TILDE
                                            &kp LGUI          &trans      &kp SPACE         &kp RET    &trans     &kp RALT
             >;
         };
