@@ -134,7 +134,7 @@
         ht_acute: ht_acute {
             compatible = "zmk,behavior-hold-tap";
             #binding-cells = <2>;
-            tapping-term-ms = <200>;
+            tapping-term-ms = <280>;
             quick-tap-ms = <175>;
             flavor = "tap-preferred";
             bindings = <&acute>, <&kp>;
@@ -143,7 +143,7 @@
         ht_tilde: ht_tilde {
             compatible = "zmk,behavior-hold-tap";
             #binding-cells = <2>;
-            tapping-term-ms = <200>;
+            tapping-term-ms = <280>;
             quick-tap-ms = <175>;
             flavor = "tap-preferred";
             bindings = <&tilde>, <&kp>;
