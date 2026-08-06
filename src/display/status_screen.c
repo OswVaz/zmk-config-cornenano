@@ -9,9 +9,9 @@
 #include <zmk/display/widgets/battery_status.h>
 
 #ifdef CONFIG_ZMK_SPLIT_ROLE_CENTRAL
-#define CUSTOM_STATUS_TEXT "Zahit"
+#define CUSTOM_STATUS_TEXT "Oswaldo"
 #else
-#define CUSTOM_STATUS_TEXT "Rios"
+#define CUSTOM_STATUS_TEXT "Vázquez"
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
