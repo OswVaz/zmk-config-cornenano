@@ -375,7 +375,12 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 457, .adv_w = 128, .box_w = 6, .box_h = 6, .ofs_x = 1, .ofs_y = 0},
     {.bitmap_index = 462, .adv_w = 128, .box_w = 7, .box_h = 7, .ofs_x = 1, .ofs_y = -1},
     {.bitmap_index = 469, .adv_w = 128, .box_w = 5, .box_h = 6, .ofs_x = 1, .ofs_y = 0},
-    {.bitmap_index = 473, .adv_w = 128, .box_w = 6, .box_h = 6, .ofs_x = 1, .ofs_y = 0}
+    {.bitmap_index = 473, .adv_w = 128, .box_w = 6, .box_h = 6, .ofs_x = 1, .ofs_y = 0},
+
+    /* U+0020 " " - hueco agregado a mano: sin bitmap, mismo avance de 8 px.
+     * Permite dibujar toda la lluvia con una sola etiqueta manteniendo las
+     * columnas alineadas. */
+    {.bitmap_index = 0, .adv_w = 128, .box_w = 0, .box_h = 0, .ofs_x = 0, .ofs_y = 0}
 };
 
 /*---------------------
@@ -387,6 +392,10 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
 /*Collect the unicode lists and glyph_id offsets*/
 static const lv_font_fmt_txt_cmap_t cmaps[] =
 {
+    {
+        .range_start = 32, .range_length = 1, .glyph_id_start = 87,
+        .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
+    },
     {
         .range_start = 12449, .range_length = 86, .glyph_id_start = 1,
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
@@ -414,7 +423,7 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
     .cmaps = cmaps,
     .kern_dsc = NULL,
     .kern_scale = 0,
-    .cmap_num = 1,
+    .cmap_num = 2,
     .bpp = 1,
     .kern_classes = 0,
     .bitmap_format = 0,
