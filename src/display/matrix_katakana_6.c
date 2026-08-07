@@ -4,11 +4,9 @@
  * Opts: --font /System/Library/Fonts/Supplemental/Arial Unicode.ttf --size 6 --bpp 1 --no-compress --format lvgl -r 0x20 -r 0x30A1-0x30F6 -o matrix_katakana_6.c
  ******************************************************************************/
 
-#ifdef LV_LVGL_H_INCLUDE_SIMPLE
-#include "lvgl.h"
-#else
-#include "lvgl/lvgl.h"
-#endif
+/* En el build de Zephyr el include path apunta a lvgl/src, donde si esta
+ * lvgl.h. El bloque que genera lv_font_conv por defecto no lo encuentra. */
+#include <lvgl.h>
 
 #ifndef MATRIX_KATAKANA_6
 #define MATRIX_KATAKANA_6 1
