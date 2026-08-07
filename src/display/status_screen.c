@@ -9,6 +9,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include <zmk/display/status_screen.h>
+#include <zmk/display/widgets/battery_status.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
 
@@ -34,6 +35,10 @@ LV_FONT_DECLARE(matrix_katakana_6);
 #define MATRIX_DEPTH 21
 #define MATRIX_CELL 6
 
+/* Gotas simultaneas por carril. Con una sola, cada carril pasa casi todo el
+ * tiempo vacio; con tres la pantalla se llena en torno al 70%. */
+#define MATRIX_DROPS 3
+
 /*
  * Sentido de la caida. Con la pantalla en vertical, "abajo" fisico corresponde
  * a x descendente en LVGL, asi que la gota se dibuja de derecha a izquierda del
@@ -57,62 +62,72 @@ static lv_obj_t *matrix_label;
 static char matrix_buf[MATRIX_BUF_SIZE];
 
 static uint8_t matrix_glyph[MATRIX_LANES][MATRIX_DEPTH]; /* indice en el rango katakana */
-static int8_t matrix_head[MATRIX_LANES];                 /* profundidad de la cabeza */
-static uint8_t matrix_trail[MATRIX_LANES];               /* largo de la estela */
-static uint8_t matrix_speed[MATRIX_LANES];               /* ticks entre paso y paso */
-static uint8_t matrix_count[MATRIX_LANES];
+static int8_t matrix_head[MATRIX_LANES][MATRIX_DROPS];   /* profundidad de la cabeza */
+static uint8_t matrix_trail[MATRIX_LANES][MATRIX_DROPS]; /* largo de la estela */
+static uint8_t matrix_speed[MATRIX_LANES][MATRIX_DROPS]; /* ticks entre paso y paso */
+static uint8_t matrix_count[MATRIX_LANES][MATRIX_DROPS];
 
 /* Bitmask de carriles donde hay que soltar una gota nueva. Lo escribe el hilo
  * de ZMK desde el listener de teclas y lo consume el hilo de UI en el timer de
  * LVGL, por eso es atomico. */
 static atomic_t matrix_pending;
 
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
+static struct zmk_widget_battery_status battery_status_widget;
+#endif
+
 static uint8_t matrix_random_glyph(void) {
     return (uint8_t)(sys_rand32_get() % KATAKANA_COUNT);
 }
 
-static void matrix_reset_lane(int lane) {
-    matrix_speed[lane] = 1 + (sys_rand32_get() % 3);
-    matrix_trail[lane] = 4 + (sys_rand32_get() % 8); /* estelas de 4 a 11 celdas */
-    /* Arranca antes del borde para que los carriles no caigan sincronizados. */
-    matrix_head[lane] = -(int8_t)(sys_rand32_get() % (MATRIX_DEPTH + 8));
-    matrix_count[lane] = 0;
+static void matrix_reset_drop(int lane, int drop) {
+    matrix_speed[lane][drop] = 1 + (sys_rand32_get() % 3);
+    matrix_trail[lane][drop] = 3 + (sys_rand32_get() % 6); /* estelas de 3 a 8 celdas */
+    /* Hueco corto antes de volver a entrar, para que el carril no se vacie. */
+    matrix_head[lane][drop] = -(int8_t)(sys_rand32_get() % 8);
+    matrix_count[lane][drop] = 0;
 }
 
-/* Gota disparada por una tecla: empieza arriba, larga y a maxima velocidad. */
+/* Gota disparada por una tecla: entra arriba, larga y a maxima velocidad.
+ * Reutiliza la gota mas avanzada del carril para no pisar las otras. */
 static void matrix_drop_lane(int lane) {
-    matrix_head[lane] = 0;
-    matrix_trail[lane] = 10;
-    matrix_speed[lane] = 1;
-    matrix_count[lane] = 0;
+    int oldest = 0;
 
-    for (int depth = 0; depth < MATRIX_DEPTH; depth++) {
-        matrix_glyph[lane][depth] = matrix_random_glyph();
+    for (int drop = 1; drop < MATRIX_DROPS; drop++) {
+        if (matrix_head[lane][drop] > matrix_head[lane][oldest]) {
+            oldest = drop;
+        }
     }
+
+    matrix_head[lane][oldest] = 0;
+    matrix_trail[lane][oldest] = 8;
+    matrix_speed[lane][oldest] = 1;
+    matrix_count[lane][oldest] = 0;
 }
 
-static void matrix_step_lane(int lane) {
-    matrix_head[lane]++;
+static void matrix_step_drop(int lane, int drop) {
+    matrix_head[lane][drop]++;
 
-    if (matrix_head[lane] - matrix_trail[lane] >= MATRIX_DEPTH) {
-        matrix_reset_lane(lane);
+    if (matrix_head[lane][drop] - matrix_trail[lane][drop] >= MATRIX_DEPTH) {
+        matrix_reset_drop(lane, drop);
         return;
     }
 
-    if (matrix_head[lane] >= 0 && matrix_head[lane] < MATRIX_DEPTH) {
-        matrix_glyph[lane][matrix_head[lane]] = matrix_random_glyph();
-    }
-
-    /* Parpadeo ocasional de un caracter ya dibujado. */
-    if ((sys_rand32_get() % 3) == 0) {
-        matrix_glyph[lane][sys_rand32_get() % MATRIX_DEPTH] = matrix_random_glyph();
+    if (matrix_head[lane][drop] >= 0 && matrix_head[lane][drop] < MATRIX_DEPTH) {
+        matrix_glyph[lane][matrix_head[lane][drop]] = matrix_random_glyph();
     }
 }
 
 static bool matrix_cell_visible(int lane, int depth) {
-    int behind = matrix_head[lane] - depth;
+    for (int drop = 0; drop < MATRIX_DROPS; drop++) {
+        int behind = matrix_head[lane][drop] - depth;
 
-    return behind >= 0 && behind < matrix_trail[lane];
+        if (behind >= 0 && behind < matrix_trail[lane][drop]) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /* Arma los 5 carriles en un solo buffer y se lo pasa a LVGL sin copiarlo. */
@@ -156,17 +171,23 @@ static void matrix_timer_cb(lv_timer_t *timer) {
     atomic_val_t pending = atomic_set(&matrix_pending, 0);
 
     for (int lane = 0; lane < MATRIX_LANES; lane++) {
+        for (int drop = 0; drop < MATRIX_DROPS; drop++) {
+            if (++matrix_count[lane][drop] < matrix_speed[lane][drop]) {
+                continue;
+            }
+
+            matrix_count[lane][drop] = 0;
+            matrix_step_drop(lane, drop);
+        }
+
         if (pending & BIT(lane)) {
             matrix_drop_lane(lane);
-            continue;
         }
 
-        if (++matrix_count[lane] < matrix_speed[lane]) {
-            continue;
+        /* Parpadeo: un caracter al azar del carril cambia de glifo. */
+        if ((sys_rand32_get() % 3) == 0) {
+            matrix_glyph[lane][sys_rand32_get() % MATRIX_DEPTH] = matrix_random_glyph();
         }
-
-        matrix_count[lane] = 0;
-        matrix_step_lane(lane);
     }
 
     matrix_render();
@@ -216,7 +237,12 @@ static void matrix_rain_init(lv_obj_t *screen) {
     lv_obj_set_pos(matrix_label, 1, 1);
 
     for (int lane = 0; lane < MATRIX_LANES; lane++) {
-        matrix_reset_lane(lane);
+        for (int drop = 0; drop < MATRIX_DROPS; drop++) {
+            matrix_reset_drop(lane, drop);
+            /* Al arrancar si las repartimos por todo el carril, para que no
+             * entren todas juntas por el mismo borde. */
+            matrix_head[lane][drop] = -(int8_t)(sys_rand32_get() % (MATRIX_DEPTH + 8));
+        }
 
         for (int depth = 0; depth < MATRIX_DEPTH; depth++) {
             matrix_glyph[lane][depth] = matrix_random_glyph();
@@ -236,6 +262,24 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_style_border_width(screen, 0, LV_PART_MAIN);
 
     matrix_rain_init(screen);
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
+    zmk_widget_battery_status_init(&battery_status_widget, screen);
+
+    lv_obj_t *battery = zmk_widget_battery_status_obj(&battery_status_widget);
+
+    /* Con la pantalla en vertical, el borde derecho de LVGL es el borde de
+     * arriba fisico (por eso la lluvia cae hacia x=0). */
+    lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+    /* Fondo opaco para que la lluvia no se le encime. Se copia el color del
+     * fondo de la pantalla en vez de fijar negro, asi da igual como quede la
+     * polaridad entre el tema mono y el "inversion-on" del panel. */
+    lv_obj_set_style_bg_color(battery, lv_obj_get_style_bg_color(screen, LV_PART_MAIN),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(battery, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(battery, 1, LV_PART_MAIN);
+#endif
 
     return screen;
 }
