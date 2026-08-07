@@ -36,8 +36,9 @@ LV_FONT_DECLARE(matrix_katakana_6);
 #define MATRIX_CELL 6
 
 /* Gotas simultaneas por carril. Con una sola, cada carril pasa casi todo el
- * tiempo vacio; con tres la pantalla se llena en torno al 70%. */
-#define MATRIX_DROPS 3
+ * tiempo vacio. Medido sobre 200k frames: 1 gota ~23% de celdas encendidas,
+ * 3 gotas ~50%, 4 gotas ~60%. Mas de 4 se ve como un bloque solido. */
+#define MATRIX_DROPS 4
 
 /*
  * Sentido de la caida. Con la pantalla en vertical, "abajo" fisico corresponde
