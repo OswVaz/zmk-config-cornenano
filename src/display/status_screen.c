@@ -9,9 +9,10 @@
 #include <zephyr/sys/atomic.h>
 
 #include <zmk/display/status_screen.h>
-#include <zmk/display/widgets/battery_status.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
+
+#include "battery_alert.h"
 
 LV_FONT_DECLARE(matrix_katakana_6);
 
@@ -72,10 +73,6 @@ static uint8_t matrix_count[MATRIX_LANES][MATRIX_DROPS];
  * de ZMK desde el listener de teclas y lo consume el hilo de UI en el timer de
  * LVGL, por eso es atomico. */
 static atomic_t matrix_pending;
-
-#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
-static struct zmk_widget_battery_status battery_status_widget;
-#endif
 
 static uint8_t matrix_random_glyph(void) {
     return (uint8_t)(sys_rand32_get() % KATAKANA_COUNT);
@@ -264,23 +261,7 @@ lv_obj_t *zmk_display_status_screen(void) {
 
     matrix_rain_init(screen);
 
-#if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
-    zmk_widget_battery_status_init(&battery_status_widget, screen);
-
-    lv_obj_t *battery = zmk_widget_battery_status_obj(&battery_status_widget);
-
-    /* Con la pantalla en vertical, el borde derecho de LVGL es el borde de
-     * arriba fisico (por eso la lluvia cae hacia x=0). */
-    lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 0, 0);
-
-    /* Fondo opaco para que la lluvia no se le encime. Se copia el color del
-     * fondo de la pantalla en vez de fijar negro, asi da igual como quede la
-     * polaridad entre el tema mono y el "inversion-on" del panel. */
-    lv_obj_set_style_bg_color(battery, lv_obj_get_style_bg_color(screen, LV_PART_MAIN),
-                              LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(battery, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(battery, 1, LV_PART_MAIN);
-#endif
+    battery_alert_init(screen);
 
     return screen;
 }
