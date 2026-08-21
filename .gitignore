@@ -1,0 +1,3 @@
+# Basura que macOS deja en cada carpeta que abres en Finder.
+# Sin barra, asi que aplica a cualquier nivel del repo.
+.DS_Store
