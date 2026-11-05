@@ -355,10 +355,15 @@ static void pilot_ship(struct naves_sim *s) {
 void naves_start_wave(struct naves_sim *s, uint32_t seed, uint32_t global_step) {
     memset(s, 0, sizeof(*s));
 
+    /* El seed es de 16 bits para que quepa en el mensaje entre mitades junto con
+     * la edad de la oleada (ver naves_sync.c). Se expande a 32 bits para el
+     * xorshift; (seed + 1) * impar nunca da 0, que es el unico estado prohibido. */
+    seed &= NAVES_SEED_MASK;
+
     s->wave_seed = seed;
     s->wave_start = global_step;
     s->step = global_step;
-    s->rng = seed != 0 ? seed : 0x6D2B79F5U;
+    s->rng = (seed + 1U) * 0x9E3779B1U;
 
     s->alive = (1U << (NAVES_ROWS * NAVES_COLS)) - 1;
     s->fx = (int8_t)((NAVES_W - FORMATION_W) / 2);

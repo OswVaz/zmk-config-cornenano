@@ -42,6 +42,9 @@
 #define NAVES_MAX_BOOMS 4
 #define NAVES_STARS 14
 
+/* Bits utiles del seed de oleada; naves_start_wave descarta el resto. */
+#define NAVES_SEED_MASK 0xFFFFU
+
 /* Framebuffer en el formato de LVGL: 128x32, 1 bit por pixel, MSB primero. */
 #define NAVES_FB_W 128
 #define NAVES_FB_H 32

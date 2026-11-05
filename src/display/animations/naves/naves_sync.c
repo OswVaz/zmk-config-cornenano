@@ -10,14 +10,19 @@
  * ZMK no tiene una via para mandar datos arbitrarios de la central a la
  * periferica, pero si puede ejecutar un behavior en la periferica (asi
  * funcionan &rgb_ug o &ext_power en las dos mitades). Ese mensaje lleva el
- * nombre del behavior mas tres numeros de 32 bits: param1, param2 y position.
+ * nombre del behavior mas param1 y param2 (32 bits cada uno). Tambien lleva
+ * `position`, pero en el protocolo de split es de 8 bits (uint8_t en
+ * zmk/split/bluetooth/service.h), asi que no sirve para datos.
  *
  * Este archivo define un behavior que no hace nada en el keymap y solo sirve
  * de buzon: la central lo invoca en la periferica con
  *
- *   param1   = seed de la oleada
- *   param2   = paso objetivo
- *   position = paso en que arranco la oleada
+ *   param1 = seed de la oleada (16 bits altos) | edad de la oleada (16 bajos)
+ *   param2 = paso objetivo
+ *
+ * La edad es objetivo - paso en que arranco la oleada. Una oleada dura a lo
+ * mucho un par de miles de pasos (la formacion siempre acaba bajando hasta la
+ * nave), muy lejos de 65535.
  *
  * y en la periferica el driver se lo pasa a naves.c. El nodo vive en
  * bloque behaviors de config/corne.keymap.
@@ -31,6 +36,7 @@
 #include <drivers/behavior.h>
 #include <zmk/behavior.h>
 
+#include "naves_core.h"
 #include "naves_sync.h"
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
@@ -38,7 +44,11 @@
 static int anim_sync_pressed(struct zmk_behavior_binding *binding,
                              struct zmk_behavior_binding_event event) {
 #if !NAVES_LEADER
-    naves_sync_receive(binding->param1, event.position, binding->param2);
+    uint32_t target = binding->param2;
+    uint32_t age = binding->param1 & 0xFFFFU;
+
+    ARG_UNUSED(event);
+    naves_sync_receive(binding->param1 >> 16, target - age, target);
 #else
     ARG_UNUSED(binding);
     ARG_UNUSED(event);
@@ -83,11 +93,11 @@ BUILD_ASSERT(sizeof(ANIM_SYNC_NAME) <= ZMK_SPLIT_RUN_BEHAVIOR_DEV_LEN,
 void naves_sync_send(uint32_t wave_seed, uint32_t wave_start, uint32_t target) {
     struct zmk_behavior_binding binding = {
         .behavior_dev = ANIM_SYNC_NAME,
-        .param1 = wave_seed,
+        .param1 = ((wave_seed & NAVES_SEED_MASK) << 16) | ((target - wave_start) & 0xFFFFU),
         .param2 = target,
     };
     struct zmk_behavior_binding_event event = {
-        .position = wave_start,
+        .position = 0,
         .timestamp = k_uptime_get(),
     };
 
