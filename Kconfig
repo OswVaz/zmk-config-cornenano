@@ -1,0 +1,29 @@
+# Biblioteca de animaciones de la OLED. Solo se compila una a la vez; se elige
+# en config/corne.conf con la linea CONFIG_CORNE_ANIMATION_<NOMBRE>=y.
+# Catalogo y como agregar una nueva: src/display/animations/README.md
+
+if ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
+
+choice CORNE_ANIMATION
+    prompt "Animacion de la pantalla OLED"
+    default CORNE_ANIMATION_MATRIX_RAIN
+
+config CORNE_ANIMATION_MATRIX_RAIN
+    bool "Lluvia de katakana estilo Matrix"
+
+config CORNE_ANIMATION_NAVES
+    bool "Nave contra aliens, una sola escena repartida entre las dos pantallas"
+    select LV_USE_CANVAS
+
+endchoice
+
+config CORNE_ANIMATION_NAVES_AUTOPLAY
+    bool "Naves: el juego sigue solo, sin esperar teclas"
+    default y
+    depends on CORNE_ANIMATION_NAVES
+    help
+      El juego avanza un paso por frame aunque no teclees; cada tecla lo
+      acelera un rato. Con n, se congela al dejar de teclear y los aliens
+      solo se mecen.
+
+endif

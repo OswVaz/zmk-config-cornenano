@@ -1,0 +1,9 @@
+# Canal interno, no es para usarse en el keymap. La mitad central lo invoca en
+# la periferica por BLE para mandarle el estado de la animacion (ver
+# src/display/animations/naves/naves_sync.c).
+
+description: Sincronizacion de la animacion de la OLED entre mitades
+
+compatible: "zmk,behavior-anim-sync"
+
+include: two_param.yaml
