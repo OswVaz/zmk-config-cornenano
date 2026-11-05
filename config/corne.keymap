@@ -148,6 +148,17 @@
             flavor = "tap-preferred";
             bindings = <&tilde>, <&kp>;
         };
+
+        // No es una tecla: es el canal por el que la mitad izquierda le pasa el
+        // estado de la animacion "naves" a la derecha (ver
+        // src/display/animations/naves/naves_sync.c). No se usa en ningun layer.
+        // El nombre del nodo viaja como texto entre mitades: maximo 8 letras.
+        // Va aqui y no en un .overlay porque ZMK solo busca corne_left.overlay
+        // y corne_right.overlay por separado; el keymap lo comparten las dos.
+        animsync: animsync {
+            compatible = "zmk,behavior-anim-sync";
+            #binding-cells = <2>;
+        };
     };
 
     keymap {
